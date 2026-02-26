@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# Raw downloaded budget files — large binary/JSON, NOT committed to git.
+# To regenerate: python download_fy2026_budget.py
+# Note: Army and Air Force servers block automated downloads (HTTP 403).
+fy2026_budget/
+
+# public/data/ IS committed — it holds the pre-processed JSON output.
+# GitHub Actions uses these committed files directly; it doesn't re-download raw data.
+# To update: run "node scripts/process-jbook.js" locally, then commit the changes.
+
+.DS_Store
+*.local

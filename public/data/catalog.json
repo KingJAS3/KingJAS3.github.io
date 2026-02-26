@@ -1,0 +1,258 @@
+[
+  {
+    "id": "defense-wide-operation-maintenance-cmp-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "CMP OP-5",
+    "file": "defense-wide-operation-maintenance-cmp-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-cybercom-headquarters-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "CYBERCOM Headquarters OP-5",
+    "file": "defense-wide-operation-maintenance-cybercom-headquarters-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-cybercom-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "CYBERCOM OP-5",
+    "file": "defense-wide-operation-maintenance-cybercom-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-cyberspace-operations-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "Cyberspace Operations OP-5",
+    "file": "defense-wide-operation-maintenance-cyberspace-operations-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dau-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DAU OP-5",
+    "file": "defense-wide-operation-maintenance-dau-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcaa-cyber-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCAA Cyber OP-5",
+    "file": "defense-wide-operation-maintenance-dcaa-cyber-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcaa-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCAA OP-5",
+    "file": "defense-wide-operation-maintenance-dcaa-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcma-cyber-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCMA Cyber OP-5",
+    "file": "defense-wide-operation-maintenance-dcma-cyber-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcma-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCMA OP-5",
+    "file": "defense-wide-operation-maintenance-dcma-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcsa-cyber-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCSA Cyber OP-5",
+    "file": "defense-wide-operation-maintenance-dcsa-cyber-op-5.json",
+    "gridCount": 4
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dcsa-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DCSA OP-5",
+    "file": "defense-wide-operation-maintenance-dcsa-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dhra-cyber-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DHRA Cyber OP-5",
+    "file": "defense-wide-operation-maintenance-dhra-cyber-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dhra-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DHRA OP-5",
+    "file": "defense-wide-operation-maintenance-dhra-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-disa-cyber-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DISA Cyber OP-5",
+    "file": "defense-wide-operation-maintenance-disa-cyber-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-disa-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DISA OP-5",
+    "file": "defense-wide-operation-maintenance-disa-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dla-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DLA OP-5",
+    "file": "defense-wide-operation-maintenance-dla-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-dlsa-op-5",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "DLSA OP-5",
+    "file": "defense-wide-operation-maintenance-dlsa-op-5.json",
+    "gridCount": 5
+  },
+  {
+    "id": "defense-wide-operation-maintenance-om-volume1-part-2",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "OM Volume1 Part 2",
+    "file": "defense-wide-operation-maintenance-om-volume1-part-2.json",
+    "gridCount": 43
+  },
+  {
+    "id": "defense-wide-operation-maintenance-om-volume1-part1",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "OM Volume1 Part1",
+    "file": "defense-wide-operation-maintenance-om-volume1-part1.json",
+    "gridCount": 252
+  },
+  {
+    "id": "defense-wide-operation-maintenance-op-32a-summary-part-1",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "OP-32A Summary (Part 1)",
+    "file": "defense-wide-operation-maintenance-op-32a-summary-part-1.json",
+    "gridCount": 1
+  },
+  {
+    "id": "defense-wide-operation-maintenance-overview-part-1",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "Overview (Part 1)",
+    "file": "defense-wide-operation-maintenance-overview-part-1.json",
+    "gridCount": 2
+  },
+  {
+    "id": "defense-wide-operation-maintenance-summary-by-agency-part-1",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "Summary by Agency (Part 1)",
+    "file": "defense-wide-operation-maintenance-summary-by-agency-part-1.json",
+    "gridCount": 1
+  },
+  {
+    "id": "defense-wide-operation-maintenance-volume-2",
+    "service": "Defense-Wide",
+    "appropriation": "Operation & Maintenance",
+    "document": "Volume 2",
+    "file": "defense-wide-operation-maintenance-volume-2.json",
+    "gridCount": 225
+  },
+  {
+    "id": "dod-summary-drug-interdiction-drug-interdiction-counter-drug",
+    "service": "DoD Summary",
+    "appropriation": "Drug Interdiction",
+    "document": "Drug Interdiction Counter Drug",
+    "file": "dod-summary-drug-interdiction-drug-interdiction-counter-drug.json",
+    "gridCount": 36
+  },
+  {
+    "id": "dod-summary-military-construction-c-1-c1-milcon-familyhousing-brac",
+    "service": "DoD Summary",
+    "appropriation": "Military Construction (C-1)",
+    "document": "C1 MilCon FamilyHousing BRAC",
+    "file": "dod-summary-military-construction-c-1-c1-milcon-familyhousing-brac.json",
+    "gridCount": 4
+  },
+  {
+    "id": "dod-summary-military-personnel-m-1-m1-military-personnel",
+    "service": "DoD Summary",
+    "appropriation": "Military Personnel (M-1)",
+    "document": "M1 Military Personnel",
+    "file": "dod-summary-military-personnel-m-1-m1-military-personnel.json",
+    "gridCount": 8
+  },
+  {
+    "id": "dod-summary-operation-maintenance-o-1-o1-operation-maintenance",
+    "service": "DoD Summary",
+    "appropriation": "Operation & Maintenance (O-1)",
+    "document": "O1 Operation Maintenance",
+    "file": "dod-summary-operation-maintenance-o-1-o1-operation-maintenance.json",
+    "gridCount": 10
+  },
+  {
+    "id": "dod-summary-pacific-deterrence-initiative-pacific-deterrence-initiative",
+    "service": "DoD Summary",
+    "appropriation": "Pacific Deterrence Initiative",
+    "document": "Pacific Deterrence Initiative",
+    "file": "dod-summary-pacific-deterrence-initiative-pacific-deterrence-initiative.json",
+    "gridCount": 35
+  },
+  {
+    "id": "dod-summary-procurement-p-1-p1-procurement",
+    "service": "DoD Summary",
+    "appropriation": "Procurement (P-1)",
+    "document": "P1 Procurement",
+    "file": "dod-summary-procurement-p-1-p1-procurement.json",
+    "gridCount": 6
+  },
+  {
+    "id": "dod-summary-procurement-reserve-p-1r-p1r-procurement-reserve",
+    "service": "DoD Summary",
+    "appropriation": "Procurement Reserve (P-1R)",
+    "document": "P1R Procurement Reserve",
+    "file": "dod-summary-procurement-reserve-p-1r-p1r-procurement-reserve.json",
+    "gridCount": 5
+  },
+  {
+    "id": "dod-summary-rdt-e-r-1-r1-rdte",
+    "service": "DoD Summary",
+    "appropriation": "RDT&E (R-1)",
+    "document": "R1 RDTE",
+    "file": "dod-summary-rdt-e-r-1-r1-rdte.json",
+    "gridCount": 8
+  },
+  {
+    "id": "dod-summary-revolving-fund-rf-1-rf1-revolving-management-fund",
+    "service": "DoD Summary",
+    "appropriation": "Revolving Fund (RF-1)",
+    "document": "RF1 Revolving Management Fund",
+    "file": "dod-summary-revolving-fund-rf-1-rf1-revolving-management-fund.json",
+    "gridCount": 8
+  }
+]
