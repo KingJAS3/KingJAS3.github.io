@@ -6,6 +6,13 @@
       "appropriation": "Operation & Maintenance",
       "label": "Regular Army O&M Volume 1",
       "file": "army-om-vol1.json"
+    },
+    {
+      "id": "army-om-vol2",
+      "service": "Army",
+      "appropriation": "Operation & Maintenance",
+      "label": "Regular Army O&M Volume 2",
+      "file": "army-om-vol2.json"
     }
   ]
 }

@@ -2,25 +2,42 @@
  * scripts/process-jbook.js
  *
  * Processes EAS JSON budget data into dashboard-ready JSON files.
- * Input:  fy2026_budget/Army/Operation and Maintenance/Regular Army Operation and Maintenance Volume 1.json
- * Output: public/data/army-om-vol1.json + public/data/index.json
+ * Input:  fy2026_budget/ (multiple documents)
+ * Output: public/data/<id>.json + public/data/index.json
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import AdmZip from "adm-zip";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "..");
 const OUT_DIR = join(ROOT, "public", "data");
-const INPUT_FILE = join(
-  ROOT,
-  "fy2026_budget",
-  "Army",
-  "Operation and Maintenance",
-  "Regular Army Operation and Maintenance Volume 1.json"
-);
+
+const DOCUMENTS = [
+  {
+    input: join(ROOT, 'fy2026_budget', 'Army', 'Operation and Maintenance',
+      'Regular Army Operation and Maintenance Volume 1.json'),
+    id: 'army-om-vol1',
+    outputFile: 'army-om-vol1.json',
+    label: 'Regular Army O&M Volume 1',
+    source: 'Regular Army Operation and Maintenance Volume 1',
+    service: 'Army',
+    appropriation: 'Operation & Maintenance',
+  },
+  {
+    input: join(ROOT, 'fy2026_budget', 'Army', 'Operation and Maintenance',
+      'Regular Army Operation and Maintenance Volume 2.json'),
+    id: 'army-om-vol2',
+    outputFile: 'army-om-vol2.json',
+    label: 'Regular Army O&M Volume 2',
+    source: 'Regular Army Operation and Maintenance Volume 2',
+    service: 'Army',
+    appropriation: 'Operation & Maintenance',
+  },
+];
 
 // Column codes that are display-only headers (skip in data extraction)
 const SKIP_COLS = new Set([
@@ -28,6 +45,7 @@ const SKIP_COLS = new Set([
   "PyHeader",
   "ThouHeader",
   "RateHeader",
+  "FyPy",
   "text",
   "numeric",
   "numeric_1",
@@ -84,6 +102,196 @@ function nodeInfo(node) {
     code: inner.Code || node.Code || "",
     description: inner.Description || node.Description || "",
   };
+}
+
+/** Strip HTML tags and decode common entities to plain text. */
+function stripHtmlToPlain(html) {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&rsquo;/g, "\u2019")
+    .replace(/&lsquo;/g, "\u2018")
+    .replace(/&rdquo;/g, "\u201D")
+    .replace(/&ldquo;/g, "\u201C")
+    .replace(/&sect;/g, "\u00A7")
+    .replace(/&bull;/g, "\u2022")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Extract text from a base64-encoded DOCX (ZIP containing word/document.xml). */
+function extractTextFromDocxBase64(base64Str) {
+  const buf = Buffer.from(base64Str, "base64");
+  const zip = new AdmZip(buf);
+  const docEntry = zip.getEntry("word/document.xml");
+  if (!docEntry) return "";
+  const xml = docEntry.getData().toString("utf8");
+  const texts = [];
+  const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    texts.push(m[1]);
+  }
+  return texts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/** Extract structured force structure data from a base64-encoded DOCX.
+ *  Parses paragraph boundaries (<w:p>) and bold runs (<w:b/>) to produce
+ *  the same { intro, sections } shape as parseForceStructureHtml(). */
+function extractStructuredFromDocxBase64(base64Str) {
+  const buf = Buffer.from(base64Str, "base64");
+  const zip = new AdmZip(buf);
+  const docEntry = zip.getEntry("word/document.xml");
+  if (!docEntry) return null;
+  const xml = docEntry.getData().toString("utf8");
+
+  // Parse paragraphs: each <w:p>...</w:p> is a line
+  const paragraphs = [];
+  const paraRe = /<w:p[ >][\s\S]*?<\/w:p>/g;
+  let pm;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const paraXml = pm[0];
+    // Check if any run in this paragraph is bold
+    const hasBold = /<w:b\s*\/?>/.test(paraXml);
+    // Extract all text runs
+    const texts = [];
+    const tRe = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let tm;
+    while ((tm = tRe.exec(paraXml)) !== null) {
+      texts.push(tm[1]);
+    }
+    const text = texts.join("").trim();
+    if (text) {
+      paragraphs.push({ text, bold: hasBold });
+    }
+  }
+
+  if (paragraphs.length === 0) return null;
+
+  // Check if any bold paragraphs exist — if not, fall back to plain text
+  const hasBoldHeadings = paragraphs.some((p) => p.bold);
+  if (!hasBoldHeadings) {
+    return { intro: paragraphs.map((p) => p.text).join("\n"), sections: [] };
+  }
+
+  // Group into intro + sections
+  const intro = [];
+  const sections = [];
+  let currentSection = null;
+
+  for (const p of paragraphs) {
+    if (p.bold) {
+      if (currentSection) sections.push(currentSection);
+      currentSection = { heading: p.text, items: [] };
+    } else if (currentSection) {
+      currentSection.items.push(p.text);
+    } else {
+      intro.push(p.text);
+    }
+  }
+  if (currentSection) sections.push(currentSection);
+
+  return { intro: intro.join("\n"), sections };
+}
+
+/** Decode HTML entities (shared with stripHtmlToPlain). */
+function decodeHtmlEntities(html) {
+  return html
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&rsquo;/g, "\u2019")
+    .replace(/&lsquo;/g, "\u2018")
+    .replace(/&rdquo;/g, "\u201D")
+    .replace(/&ldquo;/g, "\u201C")
+    .replace(/&sect;/g, "\u00A7")
+    .replace(/&bull;/g, "\u2022")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+/** Parse force structure HTML into structured { intro, sections } format.
+ *  Detects <strong> tags as section headings and <br> as line separators. */
+function parseForceStructureHtml(html) {
+  let text = decodeHtmlEntities(html);
+
+  // Merge consecutive <strong> tags (e.g., <strong>Direct Reporting </strong><strong>Units:</strong>)
+  text = text.replace(/<\/strong>\s*<strong>/gi, "");
+
+  // Remove <br> tags inside <strong> (they're visual line breaks in headings)
+  text = text.replace(/<strong>([\s\S]*?)<\/strong>/gi, (_, inner) => {
+    return "<strong>" + inner.replace(/<br\s*\/?>/gi, " ") + "</strong>";
+  });
+
+  // Replace <br> / <br /> with newlines
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+  // Replace </p> with double newlines
+  text = text.replace(/<\/p>/gi, "\n\n");
+
+  // Tokenize: walk through the text and classify each chunk as heading or plain text
+  const tokens = []; // { type: 'heading'|'text', value: string }
+  const strongRe = /<strong>([\s\S]*?)<\/strong>/gi;
+  let lastIndex = 0;
+  let sm;
+  while ((sm = strongRe.exec(text)) !== null) {
+    // Plain text before this <strong>
+    if (sm.index > lastIndex) {
+      const before = text.substring(lastIndex, sm.index).replace(/<[^>]+>/g, "");
+      tokens.push({ type: "text", value: before });
+    }
+    const hText = sm[1].replace(/<[^>]+>/g, "").trim();
+    if (hText) tokens.push({ type: "heading", value: hText });
+    lastIndex = sm.index + sm[0].length;
+  }
+  // Trailing text after last <strong>
+  if (lastIndex < text.length) {
+    const after = text.substring(lastIndex).replace(/<[^>]+>/g, "");
+    tokens.push({ type: "text", value: after });
+  }
+
+  // Check if we found any headings
+  const hasHeadings = tokens.some((t) => t.type === "heading");
+  if (!hasHeadings) {
+    const plain = tokens
+      .map((t) => t.value)
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    return plain ? { intro: plain, sections: [] } : null;
+  }
+
+  // Group into intro + sections
+  const introLines = [];
+  const sections = [];
+  let currentSection = null;
+
+  for (const tok of tokens) {
+    if (tok.type === "heading") {
+      if (currentSection) sections.push(currentSection);
+      currentSection = { heading: tok.value, items: [] };
+    } else {
+      const lines = tok.value
+        .split(/\n+/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (currentSection) {
+        currentSection.items.push(...lines);
+      } else {
+        introLines.push(...lines);
+      }
+    }
+  }
+  if (currentSection) sections.push(currentSection);
+
+  return { intro: introLines.join("\n"), sections };
 }
 
 // ---------------------------------------------------------------------------
@@ -231,17 +439,59 @@ function processGrid(gridNode) {
 // Tree walk — collect all grids with hierarchy path
 // ---------------------------------------------------------------------------
 
-function walkTree(node, pathParts, results) {
+function walkTree(node, pathParts, results, narratives, forceStructure) {
   const info = nodeInfo(node);
 
+  // Capture Part 1 "Description of Operations Financed" narrative text
+  if (info.type === "Toggle" && info.name === "Part 1 Toggle") {
+    const textObj = node.Text || {};
+    const html = typeof textObj === "string" ? textObj : textObj.Value || "";
+    let plain = html ? stripHtmlToPlain(html) : "";
+
+    // Fallback: extract from embedded DOCX upload
+    if (!plain && node.Uploads && node.Uploads.length > 0) {
+      const upload = node.Uploads[0];
+      if (upload.ByteArray) {
+        plain = extractTextFromDocxBase64(upload.ByteArray);
+      }
+    }
+
+    const sagCode = pathParts.map((p) => p.code).filter(Boolean).find((c) => c.startsWith("SAG"));
+    if (sagCode && plain) {
+      narratives[sagCode] = plain;
+    }
+    return;
+  }
+
+  // Capture Part 2 "Force Structure Summary" narrative text
+  if (info.type === "Toggle" && info.name === "Part 2 Toggle") {
+    const textObj = node.Text || {};
+    const html = typeof textObj === "string" ? textObj : textObj.Value || "";
+    let structured = html ? parseForceStructureHtml(html) : null;
+
+    // Fallback: extract structured data from embedded DOCX upload
+    if (!structured && node.Uploads && node.Uploads.length > 0) {
+      const upload = node.Uploads[0];
+      if (upload.ByteArray) {
+        structured = extractStructuredFromDocxBase64(upload.ByteArray);
+      }
+    }
+
+    const sagCode = pathParts.map((p) => p.code).filter(Boolean).find((c) => c.startsWith("SAG"));
+    if (sagCode && structured) {
+      forceStructure[sagCode] = structured;
+    }
+    return;
+  }
+
   if (info.type === "Toggle" || info.type === "Text Area") {
-    return; // Skip narrative-only nodes
+    return; // Skip other narrative-only nodes
   }
 
   if (info.type === "Grid") {
     const rows = node.Rows || [];
-    const dataRowCount = rows.filter((r) => r.Type === "data").length;
-    if (dataRowCount === 0) return; // Skip empty grids
+    const meaningfulRowCount = rows.filter((r) => r.Type !== "blank").length;
+    if (meaningfulRowCount === 0) return; // Skip empty grids
 
     const processed = processGrid(node);
     if (processed.rows.length === 0) return;
@@ -275,7 +525,7 @@ function walkTree(node, pathParts, results) {
 
   const children = getChildren(node);
   for (const child of children) {
-    walkTree(child, nextPath, results);
+    walkTree(child, nextPath, results, narratives, forceStructure);
   }
 }
 
@@ -289,65 +539,75 @@ function main() {
     mkdirSync(OUT_DIR, { recursive: true });
   }
 
-  // Check for input file
-  if (!existsSync(INPUT_FILE)) {
-    console.log(
-      "⚠  Input file not found — skipping processing.",
-      "\n   Expected:", INPUT_FILE
-    );
-    console.log("   (This is normal on deploy machines without raw data.)");
+  const catalogEntries = [];
+
+  for (const doc of DOCUMENTS) {
+    // Check for input file
+    if (!existsSync(doc.input)) {
+      console.log(`⚠  ${doc.label}: input file not found — skipping.`);
+      console.log(`   Expected: ${doc.input}`);
+      continue;
+    }
+
+    console.log(`\nProcessing ${doc.label}...`);
+    const raw = readFileSync(doc.input, "utf8");
+    const data = JSON.parse(raw);
+
+    console.log("Walking tree...");
+    const grids = [];
+    const narratives = {};
+    const forceStructure = {};
+    walkTree(data, [], grids, narratives, forceStructure);
+
+    console.log(`Found ${grids.length} grids with data.`);
+    console.log(`Found ${Object.keys(narratives).length} Part 1 narratives.`);
+    console.log(`Found ${Object.keys(forceStructure).length} Part 2 force structure summaries.`);
+
+    // Build output structure organized by hierarchy
+    const output = {
+      metadata: {
+        source: doc.source,
+        service: doc.service,
+        appropriation: doc.appropriation,
+        budgetYear: "FY2026",
+        dollarUnit: "thousands",
+        generatedAt: new Date().toISOString(),
+      },
+      grids: grids,
+      narratives: narratives,
+      forceStructure: forceStructure,
+    };
+
+    // Stats
+    let totalRows = 0;
+    for (const g of grids) totalRows += g.rows.length;
+    console.log(`Total data rows: ${totalRows}`);
+
+    // Write output
+    const outPath = join(OUT_DIR, doc.outputFile);
+    writeFileSync(outPath, JSON.stringify(output));
+    const sizeMB = (Buffer.byteLength(JSON.stringify(output)) / 1024 / 1024).toFixed(2);
+    console.log(`Wrote ${outPath} (${sizeMB} MB)`);
+
+    catalogEntries.push({
+      id: doc.id,
+      service: doc.service,
+      appropriation: doc.appropriation,
+      label: doc.label,
+      file: doc.outputFile,
+    });
+  }
+
+  if (catalogEntries.length === 0) {
+    console.log("\n⚠  No documents processed. (This is normal on deploy machines without raw data.)");
     return;
   }
 
-  console.log("Reading input file...");
-  const raw = readFileSync(INPUT_FILE, "utf8");
-  const data = JSON.parse(raw);
-
-  console.log("Walking tree...");
-  const grids = [];
-  walkTree(data, [], grids);
-
-  console.log(`Found ${grids.length} grids with data.`);
-
-  // Build output structure organized by hierarchy
-  const output = {
-    metadata: {
-      source: "Regular Army Operation and Maintenance Volume 1",
-      service: "Army",
-      appropriation: "Operation & Maintenance",
-      budgetYear: "FY2026",
-      dollarUnit: "thousands",
-      generatedAt: new Date().toISOString(),
-    },
-    grids: grids,
-  };
-
-  // Stats
-  let totalRows = 0;
-  for (const g of grids) totalRows += g.rows.length;
-  console.log(`Total data rows: ${totalRows}`);
-
-  // Write output
-  const outPath = join(OUT_DIR, "army-om-vol1.json");
-  writeFileSync(outPath, JSON.stringify(output));
-  const sizeMB = (Buffer.byteLength(JSON.stringify(output)) / 1024 / 1024).toFixed(2);
-  console.log(`Wrote ${outPath} (${sizeMB} MB)`);
-
   // Write index.json
-  const index = {
-    documents: [
-      {
-        id: "army-om-vol1",
-        service: "Army",
-        appropriation: "Operation & Maintenance",
-        label: "Regular Army O&M Volume 1",
-        file: "army-om-vol1.json",
-      },
-    ],
-  };
+  const index = { documents: catalogEntries };
   const indexPath = join(OUT_DIR, "index.json");
   writeFileSync(indexPath, JSON.stringify(index, null, 2));
-  console.log(`Wrote ${indexPath}`);
+  console.log(`\nWrote ${indexPath} (${catalogEntries.length} documents)`);
 
   console.log("Done.");
 }

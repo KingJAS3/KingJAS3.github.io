@@ -75,44 +75,44 @@ export default function App() {
       color: COLORS.text,
       fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     }}>
-      {/* Header */}
-      <header style={{
-        height: HEADER_H,
-        background: COLORS.surface,
-        borderBottom: `2px solid ${COLORS.accent}`,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 24px',
-        gap: 16,
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-      }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            DoD Budget Explorer
+      {/* Sticky header + breadcrumb wrapper */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+        {/* Header */}
+        <header style={{
+          height: HEADER_H,
+          background: COLORS.surface,
+          borderBottom: `2px solid ${COLORS.accent}`,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 24px',
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              DoD Budget Explorer
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, letterSpacing: '0.08em' }}>
+              FY2026 Budget Justification
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.textMuted, letterSpacing: '0.08em' }}>
-            FY2026 Budget Justification
+          <div style={{ width: 1, height: 28, background: COLORS.border, margin: '0 8px' }} />
+          <div style={{ marginLeft: 'auto', color: COLORS.textMuted, fontSize: 12 }}>
+            {index ? `${index.length} document${index.length !== 1 ? 's' : ''}` : loadError ? 'Load error' : 'Loading...'}
           </div>
-        </div>
-        <div style={{ width: 1, height: 28, background: COLORS.border, margin: '0 8px' }} />
-        <div style={{ marginLeft: 'auto', color: COLORS.textMuted, fontSize: 12 }}>
-          {index ? `${index.length} document${index.length !== 1 ? 's' : ''}` : loadError ? 'Load error' : 'Loading...'}
-        </div>
-      </header>
+        </header>
 
-      {/* Dropdowns */}
-      <Dropdowns
-        documents={index}
-        selected={selected}
-        onChange={handleSelectionChange}
-      />
+        {/* Dropdowns */}
+        <Dropdowns
+          documents={index}
+          selected={selected}
+          onChange={handleSelectionChange}
+        />
 
-      {/* Breadcrumb */}
-      {breadcrumb.length > 0 && (
-        <Breadcrumb path={breadcrumb} onNavigate={handleBreadcrumbNav} />
-      )}
+        {/* Breadcrumb */}
+        {breadcrumb.length > 0 && (
+          <Breadcrumb path={breadcrumb} onNavigate={handleBreadcrumbNav} />
+        )}
+      </div>
 
       {/* Main content */}
       <main style={{ padding: '0 0 40px' }}>

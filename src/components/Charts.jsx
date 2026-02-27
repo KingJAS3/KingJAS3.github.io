@@ -29,9 +29,18 @@ function fmtCompact(val) {
   return `$${val.toFixed(0)}K`
 }
 
+/** Format FTE counts (no dollar sign). */
+function fmtFTE(val) {
+  if (val == null) return ''
+  const abs = Math.abs(val)
+  if (abs >= 1e3) return `${(val / 1e3).toFixed(1)}K`
+  return val.toFixed(0)
+}
+
 /** Custom dark-themed tooltip for bar charts. */
-function BarTooltip({ active, payload, label }) {
+function BarTooltip({ active, payload, label, formatter }) {
   if (!active || !payload || !payload.length) return null
+  const fmt = formatter || fmtCompact
   return (
     <div style={{
       background: COLORS.surface,
@@ -46,7 +55,7 @@ function BarTooltip({ active, payload, label }) {
         <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, display: 'inline-block' }} />
           <span style={{ color: COLORS.textMuted }}>{p.name}:</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.value)}</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(p.value)}</span>
         </div>
       ))}
     </div>
@@ -54,8 +63,9 @@ function BarTooltip({ active, payload, label }) {
 }
 
 /** Custom dark-themed tooltip for treemap — reads name/value from payload. */
-function TreemapTooltip({ active, payload }) {
+function TreemapTooltip({ active, payload, formatter }) {
   if (!active || !payload || !payload.length) return null
+  const fmt = formatter || fmtCompact
   const item = payload[0].payload
   return (
     <div style={{
@@ -67,7 +77,7 @@ function TreemapTooltip({ active, payload }) {
       color: COLORS.text,
     }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{item.name}</div>
-      <div style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(item.value)}</div>
+      <div style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(item.value)}</div>
     </div>
   )
 }
@@ -97,8 +107,10 @@ function BarXTick({ x, y, payload }) {
 // BudgetBarChart
 // ---------------------------------------------------------------------------
 
-export function BudgetBarChart({ data }) {
+export function BudgetBarChart({ data, isFTE }) {
   if (!data || data.length === 0) return null
+
+  const fmt = isFTE ? fmtFTE : fmtCompact
 
   return (
     <ResponsiveContainer width="100%" height={320}>
@@ -112,9 +124,9 @@ export function BudgetBarChart({ data }) {
         />
         <YAxis
           tick={{ fill: COLORS.textMuted, fontSize: 10 }}
-          tickFormatter={fmtCompact}
+          tickFormatter={fmt}
         />
-        <Tooltip content={<BarTooltip />} />
+        <Tooltip content={<BarTooltip formatter={fmt} />} />
         <Legend
           wrapperStyle={{ fontSize: 11, color: COLORS.textMuted, paddingTop: 8 }}
         />
@@ -130,11 +142,12 @@ export function BudgetBarChart({ data }) {
 // BudgetTreemap
 // ---------------------------------------------------------------------------
 
-function TreemapCell({ x, y, width, height, index, name, value }) {
+function TreemapCell({ x, y, width, height, index, name, value, formatter }) {
   if (width < 4 || height < 4) return null
   const color = TREEMAP_PALETTE[index % TREEMAP_PALETTE.length]
   const showLabel = width > 50 && height > 30
   const showValue = width > 60 && height > 44
+  const fmt = formatter || fmtCompact
 
   return (
     <g>
@@ -157,16 +170,17 @@ function TreemapCell({ x, y, width, height, index, name, value }) {
           textAnchor="middle" dominantBaseline="central"
           style={{ fill: '#ffffffcc', fontSize: 9, pointerEvents: 'none' }}
         >
-          {fmtCompact(value)}
+          {fmt(value)}
         </text>
       )}
     </g>
   )
 }
 
-export function BudgetTreemap({ data, valueKey = 'By1' }) {
+export function BudgetTreemap({ data, valueKey = 'By1', isFTE }) {
   if (!data || data.length === 0) return null
 
+  const fmt = isFTE ? fmtFTE : fmtCompact
   const filtered = data
     .filter(d => d[valueKey] > 0)
     .map(d => ({ name: d.name, value: d[valueKey] }))
@@ -179,10 +193,10 @@ export function BudgetTreemap({ data, valueKey = 'By1' }) {
         data={filtered}
         dataKey="value"
         aspectRatio={4 / 3}
-        content={<TreemapCell />}
+        content={<TreemapCell formatter={fmt} />}
         isAnimationActive={false}
       >
-        <Tooltip content={<TreemapTooltip />} />
+        <Tooltip content={<TreemapTooltip formatter={fmt} />} />
       </Treemap>
     </ResponsiveContainer>
   )
