@@ -3,50 +3,39 @@
  *
  * BUILD-TIME DATA PROCESSOR
  * ─────────────────────────
- * This Node.js script runs BEFORE the React app builds (via the "prebuild" npm hook).
- * It reads every budget file in fy2026_budget/, normalizes it into a consistent
- * JSON shape, and writes the results to public/data/ so the browser can fetch them.
- *
- * WHY build-time processing?
- *   The raw files are large (some > 18 MB) and use complex nested structures.
- *   Pre-processing means the browser only fetches small, clean, pre-shaped data.
+ * Runs before the React build (via the "prebuild" npm hook).
+ * Reads every budget file in fy2026_budget/, normalizes it into a consistent
+ * JSON shape, and writes results to public/data/ for the browser to fetch.
  *
  * OUTPUT
  *   public/data/catalog.json   — index of all documents (drives the dropdowns)
  *   public/data/<id>.json      — one file per document (loaded on demand)
  *
- * SCHEMA NOTES (see also CLAUDE.md)
- *   EAS JSON/XML: Book → Book Section → Exhibit → Tab Strip → Tab → Grid
- *   Grid.Columns[].Code  = column identifier (e.g. "RowText", "Py", "By1")
- *   Grid.Columns[].Text  = display label     (e.g. "FY 2024\n Actuals")
- *   Grid.Rows[].Cells[].ColumnCode = which column this cell belongs to
- *   Grid.Rows[].Cells[].Value      = value as string with commas ("14,385")
- *   Dollar amounts are in THOUSANDS.
+ * SUPPORTED FORMATS
+ *   1. EAS JSON — Electronic Accounting System (Army O&M JSON, Defense-Wide JSON)
+ *   2. EAS XML  — Same schema serialized as XML (rare; most Army XML is Tagged PDF)
+ *   3. Tagged PDF XML — PDF → XML via Acrobat; contains <Table>/<TR>/<TH>/<TD>
+ *   4. Excel (.xlsx) — DoD Summary display files
+ *
+ * Dollar amounts are always in THOUSANDS in source files.
  */
 
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { XMLParser } from 'fast-xml-parser'
-// xlsx (SheetJS) doesn't expose proper ES module named exports in v0.18 —
-// we use createRequire to load it as CommonJS instead.
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const XLSX = require('xlsx')
 
-// __dirname isn't available in ES modules, so we reconstruct it from import.meta.url
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 const INPUT_DIR = path.join(ROOT, 'fy2026_budget')
 const OUTPUT_DIR = path.join(ROOT, 'public', 'data')
 
-// Limit rows per grid so output files stay manageable.
-// Total-row and subtotal-row counts are kept separately for charts.
 const MAX_DATA_ROWS = 200
 
-// ── Human-readable labels for EAS column codes ──────────────────────────────
-// These short codes come from the EAS (Electronic Accounting System) and are
-// not self-explanatory. We translate them for display in the dashboard.
+// ── Human-readable labels for EAS column codes ────────────────────────────────
 const COLUMN_LABELS = {
   RowText: 'Item',
   Py: 'FY2024 Actual',
@@ -74,15 +63,10 @@ const COLUMN_LABELS = {
   ChanFromFyCyToFyBy1: 'Change FY25→26',
 }
 
-// Columns that are purely for blank spacing — exclude from output
 const SKIP_COLS = new Set(['Blnk1', 'Blnk2', 'Blnk3', 'AddRow'])
 
-/**
- * Parse a dollar string like "14,385" or "1,505,375" into a number.
- * Returns null for empty or non-numeric values.
- * @param {string|number} val
- * @returns {number|null}
- */
+// ── Shared utilities ──────────────────────────────────────────────────────────
+
 function parseDollar(val) {
   if (val == null || val === '') return null
   const s = String(val).replace(/,/g, '').trim()
@@ -90,44 +74,21 @@ function parseDollar(val) {
   return isNaN(n) ? null : n
 }
 
-/**
- * Determine if a column code represents a dollar/numeric amount.
- * Uses the column's Type field first, then falls back to naming conventions.
- * @param {string} code
- * @param {string} type - column Type from the EAS schema
- */
 function isDollarCol(code, type) {
   if (type === 'numeric' || type === 'dollar') return true
-  // Column codes starting with fiscal-year prefixes are money columns
   return /^(Py|Cy|By1|FyPy|FyCy|FyBy1|Amt|Chan|Pric|Prog)/.test(code) &&
          !/Titl|Text|Stat|Code|Elem/.test(code)
 }
 
-// ── EAS Tree Walker ──────────────────────────────────────────────────────────
-// The EAS tree has two possible child locations:
-//   node.Children           — used by TabStrip, Tab, Grid nodes
-//   node.GeneratedOutput.Children — used by Book, BookSection, Exhibit nodes
-// A node with BOTH Metadata AND GeneratedOutput is a "document entity wrapper"
-// that needs to be unwrapped before we can see its Type and Children.
+// ── EAS Tree Walker ───────────────────────────────────────────────────────────
 
-/**
- * If node has a {Metadata, GeneratedOutput} wrapper, return the inner GeneratedOutput.
- * Otherwise return the node as-is.
- * @param {object} node
- */
 function unwrap(node) {
-  // The presence of Metadata alongside GeneratedOutput indicates a wrapper node
   if (node && node.GeneratedOutput && 'Metadata' in node) {
     return node.GeneratedOutput
   }
   return node
 }
 
-/**
- * Get the children of a node, checking both possible locations.
- * @param {object} node - already-unwrapped node
- * @returns {Array}
- */
 function getChildren(node) {
   if (Array.isArray(node.Children)) return node.Children
   if (node.GeneratedOutput && Array.isArray(node.GeneratedOutput.Children)) {
@@ -136,17 +97,6 @@ function getChildren(node) {
   return []
 }
 
-/**
- * Recursively walk the EAS tree and yield every Grid node with its navigation path.
- * "tabPath" tracks which Tab Strip and Tab names led to this Grid,
- * so the dashboard can reconstruct drill-down navigation.
- *
- * This is a JavaScript generator function — calling it returns an iterator.
- * Each "yield" pauses the function and sends one value to the caller.
- *
- * @param {object} node
- * @param {string[]} tabPath - accumulated navigation breadcrumb
- */
 function* walkGrids(node, tabPath = []) {
   const n = unwrap(node)
   if (!n || typeof n !== 'object') return
@@ -159,8 +109,6 @@ function* walkGrids(node, tabPath = []) {
   const myType = n.Type || ''
   const myName = (n.Name || n.Code || '').trim()
 
-  // Only Tab Strip and Tab nodes add a breadcrumb segment — they represent
-  // navigable sections in the document (like chapters and sub-chapters).
   const newPath = (myType === 'Tab Strip' || myType === 'Tab')
     ? [...tabPath, myName]
     : tabPath
@@ -170,21 +118,11 @@ function* walkGrids(node, tabPath = []) {
   }
 }
 
-/**
- * Extract a normalized grid object from a raw EAS Grid node.
- * Columns become { code, label, type }; Rows become { code, type, cells }.
- * Dollar values are parsed to numbers. Blank/spacing rows are dropped.
- * @param {object} gridNode
- * @param {string[]} tabPath
- * @returns {object}
- */
 function extractGrid(gridNode, tabPath) {
-  // Build column definitions, skipping blank-spacer columns
   const columns = (gridNode.Columns || [])
     .filter(c => c.Code && !SKIP_COLS.has(c.Code))
     .map(c => ({
       code: c.Code,
-      // col.Text is the display label from EAS (may contain \n for line wrapping)
       label: (c.Text || COLUMN_LABELS[c.Code] || c.Code).replace(/\\n|\n/g, ' ').replace(/\s+/g, ' ').trim(),
       type: c.Type || 'text',
     }))
@@ -192,7 +130,6 @@ function extractGrid(gridNode, tabPath) {
   const colSet = new Set(columns.map(c => c.code))
   const colTypeMap = Object.fromEntries(columns.map(c => [c.code, c.type]))
 
-  // Separate blank rows (spacing) from real data
   const allRows = (gridNode.Rows || []).filter(r => r.Type !== 'blank')
   const totalRows = allRows.length
   const truncated = totalRows > MAX_DATA_ROWS
@@ -203,7 +140,6 @@ function extractGrid(gridNode, tabPath) {
       const code = cell.ColumnCode
       if (!code || !colSet.has(code)) continue
       const raw = cell.Value ?? ''
-      // Parse numeric columns to numbers so charts can use them directly
       cells[code] = isDollarCol(code, colTypeMap[code])
         ? parseDollar(raw)
         : String(raw).trim()
@@ -221,14 +157,8 @@ function extractGrid(gridNode, tabPath) {
   }
 }
 
-// ── EAS JSON Parser ──────────────────────────────────────────────────────────
+// ── EAS JSON Parser ───────────────────────────────────────────────────────────
 
-/**
- * Parse an EAS-format JSON object (already parsed from disk) into normalized grids.
- * Used for both .json files and XML files (after fast-xml-parser converts XML to JS).
- * @param {object} data - parsed JS object with {Metadata, GeneratedOutput}
- * @returns {{ metadata: object, grids: Array }|null}
- */
 function parseEasData(data) {
   const rootOutput = data.GeneratedOutput
   if (!rootOutput) return null
@@ -236,36 +166,28 @@ function parseEasData(data) {
   const grids = []
   for (const { gridNode, tabPath } of walkGrids(rootOutput, [])) {
     const g = extractGrid(gridNode, tabPath)
-    if (g.columns.length > 0) grids.push(g) // skip empty grids
+    if (g.columns.length > 0) grids.push(g)
   }
 
   return { metadata: data.Metadata || {}, grids }
 }
 
-/**
- * Parse an EAS JSON file from disk.
- * @param {string} filePath - absolute path to .json file
- */
 function parseEasJson(filePath) {
   const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'))
   return parseEasData(raw)
 }
 
-// ── XML Parser ───────────────────────────────────────────────────────────────
+// ── XML Parser (dispatches between EAS XML and Tagged PDF XML) ────────────────
 
-/**
- * Parse an Army/Air Force EAS XML file.
- * fast-xml-parser converts XML to a JS object with the same structure as the JSON files,
- * so we can reuse parseEasData() after parsing.
- * @param {string} filePath - absolute path to .xml file
- */
 function parseXml(filePath) {
   const xmlText = fs.readFileSync(filePath, 'utf8')
 
-  // fast-xml-parser settings:
-  //   ignoreAttributes: false  — keep XML attributes (some EAS XML uses them)
-  //   isArray: fn              — force these tags to always be arrays even with one item,
-  //                              so we don't need to handle "array vs single object"
+  // Detect Tagged PDF XML format (Army/AF justification books exported from PDF)
+  if (xmlText.slice(0, 800).includes('<TaggedPDF-doc>')) {
+    return parseTaggedPdfXml(xmlText, filePath)
+  }
+
+  // Try EAS XML format (same schema as EAS JSON, serialized as XML)
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -273,8 +195,6 @@ function parseXml(filePath) {
   })
   const obj = parser.parse(xmlText)
 
-  // EAS XML files have the same {Metadata, GeneratedOutput} root structure as JSON.
-  // Walk up the parsed object tree to find it.
   function findEasRoot(o, depth = 0) {
     if (!o || typeof o !== 'object' || depth > 5) return null
     if (o.GeneratedOutput) return o
@@ -292,28 +212,247 @@ function parseXml(filePath) {
   return parseEasData(root)
 }
 
-// ── Excel Parser ─────────────────────────────────────────────────────────────
+// ── Tagged PDF XML Parser ─────────────────────────────────────────────────────
+//
+// Army/AF J-Books are exported from PDF via Acrobat "SaveAsXML".
+// The result is a <TaggedPDF-doc> with narrative markup and embedded
+// <Table>/<TR>/<TH>/<TD> elements containing budget data.
+// This parser extracts those tables and normalizes them into the same
+// {columns, rows} shape as EAS grids.
 
 /**
- * Parse a DoD Summary Excel (.xlsx) file.
- * Each worksheet becomes one "grid" in the output.
- * The xlsx library reads the file and gives us rows as arrays.
- * @param {string} filePath - absolute path to .xlsx file
+ * Extract text content from a TH or TD element, stripping child tags
+ * and decoding XML entities.
  */
+function cleanCellText(raw) {
+  return (raw || '')
+    .replace(/<[^>]+>/g, '')          // strip any nested tags (e.g. <Figure>)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Extract all TH and TD cells from a <TR> element's content string.
+ * Handles both normal tags (<TD>text</TD>) and self-closing (<TD/>).
+ */
+function extractTaggedPdfCells(trContent) {
+  const cells = []
+  // Match self-closing tags first, then normal tags — combined in one regex
+  // Group 1: tag type for self-closing (<TH/> or <TD/>)
+  // Group 2: tag type for normal open tag
+  // Group 3: content between normal open and close
+  const pattern = /<(TH|TD)(?:[^>]*)?\s*\/>|<(TH|TD)(?:[^>]*)?>([^]*?)<\/(?:TH|TD)>/gi
+  for (const m of trContent.matchAll(pattern)) {
+    if (m[1]) {
+      // Self-closing: <TD/> or <TH/>
+      cells.push({ type: m[1].toUpperCase(), text: '' })
+    } else if (m[2]) {
+      cells.push({ type: m[2].toUpperCase(), text: cleanCellText(m[3]) })
+    }
+  }
+  return cells
+}
+
+/**
+ * A row is a header row if all its cells are TH, or if its TD cells
+ * contain no parseable dollar amounts (meaning they're subcategory labels,
+ * not data).
+ */
+function isTaggedPdfHeaderRow(row) {
+  if (row.every(c => c.type === 'TH')) return true
+  const tdCells = row.filter(c => c.type === 'TD')
+  const hasNumericTd = tdCells.some(c => parseDollar(c.text) != null)
+  return !hasNumericTd
+}
+
+/**
+ * Build column definitions from 1–2 header rows.
+ * If there are 2 header rows, the first is assumed to be a "super-header"
+ * with FY year labels (e.g. "FY 2024", "FY 2025", "FY 2026"), and the
+ * second has subcategory labels (e.g. "Actuals", "Enacted", "Request").
+ * These are combined: "FY 2024 Actuals", "FY 2025 Enacted", etc.
+ *
+ * Column type detection:
+ *   - First column → always text (row label)
+ *   - Columns under a "FY XXXX" super-header → numeric (dollar/quantity data)
+ *   - Columns whose label contains fiscal/amount keywords → numeric
+ *   - Everything else → text
+ *
+ * Column codes: first column → 'RowText' (label), others → 'pdfc_N'.
+ */
+function buildTaggedPdfColumns(headerRows) {
+  if (headerRows.length === 0) return []
+
+  const mainHeader = headerRows[headerRows.length - 1]
+  const superHeader = headerRows.length > 1 ? headerRows[0] : null
+
+  return mainHeader.map((cell, i) => {
+    let label = cell.text || ''
+
+    let superText = null
+    if (superHeader && i > 0) {
+      // Super-header has no label column, so offset by 1
+      const superIdx = i - 1
+      if (superIdx < superHeader.length) {
+        superText = (superHeader[superIdx].text || '').trim()
+        if (superText && /FY\s*20\d\d/i.test(superText)) {
+          // Combine FY year with sub-label; fall back to FY year alone if sub-label is empty
+          label = label
+            ? `${superText} ${label}`.replace(/\s+/g, ' ').trim()
+            : superText
+        }
+      }
+    }
+
+    // Determine column type:
+    // - Under a FY-year super-header → numeric
+    // - Label contains fiscal/amount keywords → numeric
+    // - First column (row labels) or descriptive text → text
+    const isLabel = i === 0
+    const fySuper = superText && /FY\s*20\d\d/i.test(superText)
+    const fyLabel = /FY\s*\d{4}|amount|cost|\$|total|enacted|actuals?|request|prior|outyear|quantit/i.test(label)
+    const isNumeric = !isLabel && (fySuper || fyLabel)
+
+    return {
+      code: isLabel ? 'RowText' : `pdfc_${i}`,
+      label: label || `Col ${i}`,
+      type: isLabel ? 'text' : (isNumeric ? 'numeric' : 'text'),
+    }
+  })
+}
+
+/**
+ * Extract a human-readable table name from the text that appears before
+ * the table in the document (headings, paragraph labels).
+ */
+function extractTaggedPdfTableName(contextBefore, tableIndex) {
+  // Find headings and paragraphs with meaningful content
+  const matches = [...contextBefore.matchAll(/<(H[1-6]|P)(?:[^>]*)?>([^<]{8,300})<\/\1>/gi)]
+
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const text = matches[i][2]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    // Skip generic/boilerplate labels
+    if (/^(UNCLASSIFIED|Page \d|Department of Defense|Department of the|Jun \d|FY \d{4} President|\(Dollars?)/i.test(text)) continue
+    if (text.length < 5) continue
+
+    // Prefer an "Exhibit X-N" reference if present
+    const exhibitMatch = text.match(/Exhibit\s+[A-Z0-9-]+(?:\s+[A-Z][A-Za-z\s,&]{0,40})?/i)
+    if (exhibitMatch) return exhibitMatch[0].replace(/\s+/g, ' ').trim().slice(0, 80)
+
+    return text.length > 80 ? text.slice(0, 80) + '…' : text
+  }
+
+  return `Table ${tableIndex + 1}`
+}
+
+/**
+ * Main Tagged PDF XML parser.
+ * Finds every <Table> element, extracts its header and data rows,
+ * and returns a normalized document with grids.
+ */
+function parseTaggedPdfXml(xmlText, filePath) {
+  const filename = path.basename(filePath, path.extname(filePath))
+  const grids = []
+
+  for (const tableMatch of xmlText.matchAll(/<Table[^>]*>([\s\S]*?)<\/Table>/gi)) {
+    const tableContent = tableMatch[1]
+    const matchStart = tableMatch.index
+
+    // Context window before this table for naming
+    const contextBefore = xmlText.slice(Math.max(0, matchStart - 700), matchStart)
+    const tableName = extractTaggedPdfTableName(contextBefore, grids.length)
+
+    // Extract rows
+    const allRows = []
+    for (const trMatch of tableContent.matchAll(/<TR[^>]*>([\s\S]*?)<\/TR>/gi)) {
+      const cells = extractTaggedPdfCells(trMatch[1])
+      if (cells.length > 0) allRows.push(cells)
+    }
+
+    if (allRows.length < 2) continue  // need at least 1 header + 1 data row
+
+    // Identify header rows at the start of the table
+    let headerEnd = 0
+    for (let i = 0; i < Math.min(4, allRows.length - 1); i++) {
+      if (isTaggedPdfHeaderRow(allRows[i])) {
+        headerEnd = i + 1
+      } else {
+        break
+      }
+    }
+    if (headerEnd === 0) headerEnd = 1  // treat first row as header if detection fails
+
+    const headerRows = allRows.slice(0, headerEnd)
+    const dataRows = allRows.slice(headerEnd)
+    if (dataRows.length === 0) continue
+
+    const columns = buildTaggedPdfColumns(headerRows)
+    if (columns.length === 0) continue
+
+    // Build normalized rows
+    const rows = []
+    for (const row of dataRows.slice(0, MAX_DATA_ROWS)) {
+      // Skip entirely empty rows
+      if (row.every(c => !c.text)) continue
+
+      const cells = {}
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i]
+        const cell = i < row.length ? row[i] : null
+        const val = cell ? cell.text : ''
+        cells[col.code] = col.type === 'numeric' ? parseDollar(val) : val
+      }
+
+      // Determine row type from cell tag types
+      const allTh = row.every(c => c.type === 'TH')
+      const rowType = allTh ? 'subtotal' : 'data'
+
+      // Skip rows with no data at all
+      const hasData = Object.values(cells).some(v => v != null && v !== '')
+      if (!hasData) continue
+
+      rows.push({ code: null, type: rowType, cells })
+    }
+
+    if (rows.length === 0) continue
+
+    grids.push({
+      name: tableName,
+      tabPath: [tableName],
+      columns,
+      rows,
+      totalRows: dataRows.length,
+      truncated: dataRows.length > MAX_DATA_ROWS,
+    })
+  }
+
+  if (grids.length === 0) return null
+  return { metadata: { source: filename, sourceType: 'tagged-pdf' }, grids }
+}
+
+// ── Excel Parser ──────────────────────────────────────────────────────────────
+
 function parseExcel(filePath) {
-  // cellText: true  — get values as strings (avoids date conversion issues)
   const workbook = XLSX.readFile(filePath, { cellText: false, cellDates: false })
   const grids = []
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName]
-    // sheet_to_json with header:1 gives us an array of row-arrays.
-    // defval:'' fills empty cells with empty string (vs undefined).
     const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
     if (rawRows.length < 2) continue
 
-    // Find the header row — the first row with at least 4 non-empty cells.
-    // DoD Excel files often have title/date rows above the actual column headers.
     let headerIdx = 0
     for (let i = 0; i < Math.min(10, rawRows.length); i++) {
       if (rawRows[i].filter(v => v !== '').length >= 4) {
@@ -325,19 +464,13 @@ function parseExcel(filePath) {
     const rawHeaders = rawRows[headerIdx]
     if (!rawHeaders.some(h => h !== '')) continue
 
-    // Build column definitions from header row
-    const columns = rawHeaders.map((h, i) => {
-      const label = String(h).trim()
-      const lc = label.toLowerCase()
-      // Detect money columns by their header text
-      const type = (lc.includes('amount') || lc.includes('$ ') || lc.includes('cost'))
-        ? 'numeric' : 'text'
-      return { code: `col_${i}`, label: label || `Col ${i}`, type }
-    }).filter(c => c.label && c.label !== `Col ${c.code.slice(4)}` || rawHeaders[parseInt(c.code.slice(4))] !== '')
-
-    // Re-filter to only keep columns with non-empty headers
     const validCols = rawHeaders
-      .map((h, i) => ({ code: `col_${i}`, label: String(h).trim(), type: (String(h).toLowerCase().includes('amount') || String(h).toLowerCase().includes('$ ') ? 'numeric' : 'text') }))
+      .map((h, i) => ({
+        code: `col_${i}`,
+        label: String(h).trim(),
+        type: (String(h).toLowerCase().includes('amount') || String(h).toLowerCase().includes('$ ')
+          ? 'numeric' : 'text'),
+      }))
       .filter(c => c.label.length > 0)
 
     const dataRows = rawRows
@@ -349,7 +482,6 @@ function parseExcel(filePath) {
         rawHeaders.forEach((h, i) => {
           if (!String(h).trim()) return
           const v = r[i] ?? ''
-          // xlsx returns numbers as JS numbers for numeric cells — keep as-is
           cells[`col_${i}`] = (typeof v === 'number') ? v : String(v).trim()
         })
         return { code: `row_${ri}`, type: 'data', cells }
@@ -368,17 +500,22 @@ function parseExcel(filePath) {
   return { metadata: { source: path.basename(filePath) }, grids }
 }
 
-// ── Catalog Metadata Helpers ─────────────────────────────────────────────────
+// ── Catalog Metadata Helpers ──────────────────────────────────────────────────
 
 /**
- * Given the relative file path inside fy2026_budget/, determine:
- *   service       — top-level organization (e.g. "Defense-Wide")
- *   appropriation — budget category (e.g. "Operation & Maintenance")
- *   docLabel      — human-readable document name
- *
- * These three values power the cascading dropdowns in the dashboard.
- * @param {string} relPath - e.g. "DefenseWide/O&M_Agencies/CYBERCOM_OP-5.json"
- * @returns {{ service: string, appropriation: string, docLabel: string }}
+ * Shorten common long phrases in document labels for cleaner dropdown display.
+ */
+function cleanDocLabel(label) {
+  return label
+    .replace(/Operation and Maintenance/gi, 'O&M')
+    .replace(/Research,? Development,? Test(?:ing)? and Evaluation/gi, 'RDT&E')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Given a relative file path inside fy2026_budget/, determine the
+ * service, appropriation, and document display labels.
  */
 function catalogMeta(relPath) {
   const parts = relPath.split(path.sep)
@@ -394,15 +531,17 @@ function catalogMeta(relPath) {
   }
   const service = serviceMap[serviceDir] || serviceDir
 
-  // Strip extension and clean up underscores/FY2026 prefix for display
-  const docLabel = filename
+  // Strip extension, clean underscores, remove FY2026 prefix
+  let docLabel = filename
     .replace(/\.(json|xml|xlsx?)$/i, '')
     .replace(/_/g, ' ')
     .replace(/^FY2026\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim()
 
-  // Map the raw directory name to a display-friendly appropriation label
+  docLabel = cleanDocLabel(docLabel)
+
+  // Map raw directory names to display appropriation labels
   const catMap = {
     'O&M': 'Operation & Maintenance',
     'O&M_Agencies': 'Operation & Maintenance',
@@ -418,6 +557,7 @@ function catalogMeta(relPath) {
     MILPERS: 'Military Personnel',
     MILCON: 'Military Construction',
     'Other Funds': 'Other Funds',
+    'U.S. Army Cemeterial Expenses and Construction': 'Cemeterial Expenses',
   }
   let appropriation = catMap[catDir] || catDir || 'Other'
 
@@ -437,12 +577,6 @@ function catalogMeta(relPath) {
   return { service, appropriation, docLabel }
 }
 
-/**
- * Convert a human-readable string to a URL-safe identifier slug.
- * e.g. "CYBERCOM OP-5" → "cybercom-op-5"
- * @param {string} str
- * @returns {string}
- */
 function slugify(str) {
   return str
     .toLowerCase()
@@ -450,11 +584,9 @@ function slugify(str) {
     .replace(/^-|-$/g, '')
 }
 
-// ── Main Processing Loop ─────────────────────────────────────────────────────
+// ── Main Processing Loop ──────────────────────────────────────────────────────
 
 function main() {
-  // If the raw data directory doesn't exist (e.g. in GitHub Actions where we use
-  // pre-committed public/data/ files), skip processing and exit cleanly.
   if (!fs.existsSync(INPUT_DIR)) {
     console.log('No fy2026_budget/ directory found — skipping data processing.')
     console.log('Using existing public/data/ files (committed to git).')
@@ -463,14 +595,9 @@ function main() {
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 
-  const catalog = []  // will hold metadata for every processed document
+  const catalog = []
   const errors = []
 
-  /**
-   * Walk a directory tree, calling processFile() on each file.
-   * @param {string} dir - absolute path to directory
-   * @param {string} relBase - relative path prefix for catalog entries
-   */
   function walkDir(dir, relBase) {
     let entries
     try {
@@ -526,7 +653,6 @@ function main() {
       grids: parsed.grids,
     }
 
-    // Write minified JSON (no pretty-printing) to keep file sizes small
     fs.writeFileSync(outPath, JSON.stringify(doc))
     console.log(`    -> ${outFile} (${parsed.grids.length} grid(s))`)
 
@@ -543,7 +669,6 @@ function main() {
   console.log('\nProcessing budget files...\n')
   walkDir(INPUT_DIR, '')
 
-  // Sort catalog alphabetically so dropdown options appear in a logical order
   catalog.sort((a, b) => {
     if (a.service !== b.service) return a.service.localeCompare(b.service)
     if (a.appropriation !== b.appropriation) return a.appropriation.localeCompare(b.appropriation)
