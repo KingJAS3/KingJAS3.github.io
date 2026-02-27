@@ -1,64 +1,38 @@
-/**
- * App.jsx — the root component that owns all the dashboard state.
- *
- * In React, "state" is data that the UI needs to remember and react to.
- * When state changes, React automatically re-renders the affected parts of the UI.
- *
- * This component:
- *   1. Loads the document catalog on startup
- *   2. Tracks which service / appropriation / document the user has selected
- *   3. Fetches the selected document's data
- *   4. Passes everything down to child components as props
- */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { COLORS } from './colors'
 import Dropdowns from './components/Dropdowns'
 import Breadcrumb from './components/Breadcrumb'
 import BudgetViewer from './components/BudgetViewer'
 
-// ── Layout constants ─────────────────────────────────────────────────────────
 const HEADER_H = 56
 
 export default function App() {
-  // "catalog" = the full list of available documents (loaded once from the server).
-  // null means "not yet loaded"; an empty array would mean "loaded but empty".
-  const [catalog, setCatalog] = useState(null)
+  const [index, setIndex] = useState(null)
   const [loadError, setLoadError] = useState(null)
-
-  // "selected" tracks which dropdown values the user has chosen
   const [selected, setSelected] = useState({ service: '', appropriation: '', docId: '' })
-
-  // "docData" = the currently loaded document (grids, metadata, etc.)
-  // null means no document is loaded yet
   const [docData, setDocData] = useState(null)
   const [docLoading, setDocLoading] = useState(false)
-
-  // "breadcrumb" = the navigation path shown above the viewer
-  // e.g. ["Defense-Wide", "Operation & Maintenance", "CYBERCOM OP-5", "SAG Parts > Part 1"]
   const [breadcrumb, setBreadcrumb] = useState([])
 
-  // ── Load catalog once when the app first renders ────────────────────────
-  // useEffect (a "hook" = a special function that lets components tap into React features)
-  // runs the provided function after the component renders.
-  // The empty [] dependency array means "only run this once on initial load."
+  // Load index.json on mount
   useEffect(() => {
-    fetch('/data/catalog.json')
+    fetch('/data/index.json')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then(setCatalog)
+      .then(data => setIndex(data.documents))
       .catch(err => setLoadError(err.message))
   }, [])
 
-  // ── Load document data whenever the selected document changes ───────────
+  // Load document when selected
   useEffect(() => {
-    if (!selected.docId || !catalog) {
+    if (!selected.docId || !index) {
       setDocData(null)
       setBreadcrumb([])
       return
     }
-    const entry = catalog.find(d => d.id === selected.docId)
+    const entry = index.find(d => d.id === selected.docId)
     if (!entry) return
 
     setDocLoading(true)
@@ -68,14 +42,12 @@ export default function App() {
       .then(r => r.json())
       .then(data => {
         setDocData(data)
-        setBreadcrumb([data.service, data.appropriation, data.document])
+        setBreadcrumb([entry.service, entry.appropriation, entry.label])
         setDocLoading(false)
       })
       .catch(() => setDocLoading(false))
-  }, [selected.docId, catalog])
+  }, [selected.docId, index])
 
-  // ── Handle dropdown changes ─────────────────────────────────────────────
-  // When a higher-level dropdown changes (e.g. Service), reset the lower ones.
   function handleSelectionChange(newSelected) {
     setSelected(newSelected)
     if (newSelected.docId !== selected.docId) {
@@ -84,110 +56,87 @@ export default function App() {
     }
   }
 
-  // ── Styles ──────────────────────────────────────────────────────────────
-  const appStyle = {
-    background: COLORS.navy,
-    minHeight: '100vh',
-    color: COLORS.text,
-    fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-  }
+  // BudgetViewer stores its nav function here via ref-like pattern
+  const [viewerNav, setViewerNav] = useState(null)
 
-  const headerStyle = {
-    height: HEADER_H,
-    background: COLORS.navyMid,
-    borderBottom: `2px solid ${COLORS.accent}`,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 24px',
-    gap: 16,
-    position: 'sticky',   // stays at the top even when the user scrolls down
-    top: 0,
-    zIndex: 100,          // sits above all other content
-  }
+  const handleBreadcrumbNav = useCallback((i) => {
+    if (viewerNav) viewerNav(i)
+  }, [viewerNav])
 
-  const titleStyle = {
-    fontSize: 18,
-    fontWeight: 700,
-    color: COLORS.text,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  }
-
-  const subtitleStyle = {
-    fontSize: 12,
-    color: COLORS.textDim,
-    letterSpacing: '0.08em',
-  }
-
-  const dividerStyle = {
-    width: 1,
-    height: 28,
-    background: COLORS.border,
-    margin: '0 8px',
-  }
-
-  const pillStyle = {
-    background: COLORS.accent + '22',   // hex alpha: 22 = ~13% opacity
-    border: `1px solid ${COLORS.accent}44`,
-    color: COLORS.accent,
-    borderRadius: 4,
-    padding: '3px 10px',
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '0.06em',
-  }
+  const handleBreadcrumbUpdate = useCallback((path, navFn) => {
+    setBreadcrumb(path)
+    if (navFn) setViewerNav(() => navFn)
+  }, [])
 
   return (
-    <div style={appStyle}>
-      {/* ── Top header bar ───────────────────────────────────────────── */}
-      <header style={headerStyle}>
+    <div style={{
+      background: COLORS.bg,
+      minHeight: '100vh',
+      color: COLORS.text,
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    }}>
+      {/* Header */}
+      <header style={{
+        height: HEADER_H,
+        background: COLORS.surface,
+        borderBottom: `2px solid ${COLORS.accent}`,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
+        gap: 16,
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
         <div>
-          <div style={titleStyle}>DoD Budget Explorer</div>
-          <div style={subtitleStyle}>FY2026 Budget Justification</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            DoD Budget Explorer
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.textMuted, letterSpacing: '0.08em' }}>
+            FY2026 Budget Justification
+          </div>
         </div>
-        <div style={dividerStyle} />
-        <span style={pillStyle}>UNCLASSIFIED</span>
-        <div style={{ marginLeft: 'auto', color: COLORS.textDim, fontSize: 12 }}>
-          {catalog ? `${catalog.length} documents` : loadError ? '⚠ Load error' : 'Loading…'}
+        <div style={{ width: 1, height: 28, background: COLORS.border, margin: '0 8px' }} />
+        <div style={{ marginLeft: 'auto', color: COLORS.textMuted, fontSize: 12 }}>
+          {index ? `${index.length} document${index.length !== 1 ? 's' : ''}` : loadError ? 'Load error' : 'Loading...'}
         </div>
       </header>
 
-      {/* ── Cascading dropdowns ──────────────────────────────────────── */}
+      {/* Dropdowns */}
       <Dropdowns
-        catalog={catalog}
+        documents={index}
         selected={selected}
         onChange={handleSelectionChange}
       />
 
-      {/* ── Navigation breadcrumb ────────────────────────────────────── */}
+      {/* Breadcrumb */}
       {breadcrumb.length > 0 && (
-        <Breadcrumb path={breadcrumb} />
+        <Breadcrumb path={breadcrumb} onNavigate={handleBreadcrumbNav} />
       )}
 
-      {/* ── Main content area ────────────────────────────────────────── */}
+      {/* Main content */}
       <main style={{ padding: '0 0 40px' }}>
         {loadError && (
-          <Notice color={COLORS.red}>
-            Could not load document catalog: {loadError}.
-            Run <code>npm run build</code> to regenerate public/data/.
+          <Notice color="#f44336">
+            Could not load document index: {loadError}.
+            Run <code>npm run process</code> to generate public/data/.
           </Notice>
         )}
 
-        {!loadError && !selected.docId && catalog && (
+        {!loadError && !selected.docId && index && (
           <Notice color={COLORS.accent}>
             Select a Service, Appropriation, and Document above to begin exploring.
           </Notice>
         )}
 
         {docLoading && (
-          <Notice color={COLORS.textDim}>Loading document data…</Notice>
+          <Notice color={COLORS.textMuted}>Loading document data...</Notice>
         )}
 
         {docData && !docLoading && (
           <BudgetViewer
             data={docData}
-            breadcrumb={breadcrumb}
-            onBreadcrumbUpdate={setBreadcrumb}
+            onBreadcrumbChange={handleBreadcrumbUpdate}
           />
         )}
       </main>
@@ -195,10 +144,6 @@ export default function App() {
   )
 }
 
-/**
- * A simple centered notice box for status messages.
- * @param {{ color: string, children: React.ReactNode }} props
- */
 function Notice({ color, children }) {
   return (
     <div style={{
@@ -208,7 +153,7 @@ function Notice({ color, children }) {
       background: color + '18',
       border: `1px solid ${color}44`,
       borderRadius: 8,
-      color: color === COLORS.textDim ? COLORS.textDim : COLORS.text,
+      color: COLORS.text,
       fontSize: 14,
       lineHeight: 1.6,
     }}>

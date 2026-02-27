@@ -1,0 +1,11 @@
+{
+  "documents": [
+    {
+      "id": "army-om-vol1",
+      "service": "Army",
+      "appropriation": "Operation & Maintenance",
+      "label": "Regular Army O&M Volume 1",
+      "file": "army-om-vol1.json"
+    }
+  ]
+}

@@ -1,17 +1,13 @@
-/**
- * Breadcrumb.jsx — a trail of ›-separated labels showing where the user is.
- *
- * Example: Defense-Wide › Operation & Maintenance › CYBERCOM OP-5 › SAG Parts › Part 1
- *
- * The last segment is always highlighted as the "current" location;
- * earlier segments are dimmed.
- *
- * @param {{ path: string[] }} props
- */
 import React from 'react'
 import { COLORS } from '../colors'
 
-export default function Breadcrumb({ path }) {
+/**
+ * Clickable breadcrumb navigation.
+ * Each segment except the last is clickable — navigates back to that level.
+ *
+ * @param {{ path: string[], onNavigate: (index: number) => void }} props
+ */
+export default function Breadcrumb({ path, onNavigate }) {
   if (!path || path.length === 0) return null
 
   return (
@@ -19,7 +15,7 @@ export default function Breadcrumb({ path }) {
       aria-label="Navigation breadcrumb"
       style={{
         padding: '7px 24px',
-        background: COLORS.navyMid,
+        background: COLORS.surface,
         borderBottom: `1px solid ${COLORS.border}`,
         fontSize: 12,
         display: 'flex',
@@ -33,18 +29,18 @@ export default function Breadcrumb({ path }) {
         const isLast = i === path.length - 1
         return (
           <React.Fragment key={i}>
-            {/* Separator between segments */}
             {i > 0 && (
-              <span style={{ color: COLORS.textMuted, margin: '0 5px', fontWeight: 400 }}>
-                ›
-              </span>
+              <span style={{ color: COLORS.textMuted, margin: '0 5px' }}>›</span>
             )}
-            {/* The segment itself — current (last) is bright, ancestors are dim */}
-            <span style={{
-              color: isLast ? COLORS.text : COLORS.textDim,
-              fontWeight: isLast ? 600 : 400,
-              whiteSpace: 'nowrap',
-            }}>
+            <span
+              onClick={isLast ? undefined : () => onNavigate(i)}
+              style={{
+                color: isLast ? COLORS.text : COLORS.accent,
+                fontWeight: isLast ? 600 : 400,
+                cursor: isLast ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {segment}
             </span>
           </React.Fragment>
