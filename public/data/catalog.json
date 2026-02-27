@@ -37,7 +37,7 @@
     "appropriation": "Military Construction",
     "document": "Regular Army Military Construction, Army Family Housing and Homeowners Assistance",
     "file": "army-military-construction-regular-army-military-construction-army-family-housing-and-homeowners-assistance.json",
-    "gridCount": 163
+    "gridCount": 159
   },
   {
     "id": "army-military-construction-reserve-army-military-construction",
@@ -72,12 +72,20 @@
     "gridCount": 62
   },
   {
+    "id": "army-operation-maintenance-national-guard-army-o-m-overview",
+    "service": "Army",
+    "appropriation": "Operation & Maintenance",
+    "document": "National Guard Army O&M Overview",
+    "file": "army-operation-maintenance-national-guard-army-o-m-overview.json",
+    "gridCount": 13
+  },
+  {
     "id": "army-operation-maintenance-regular-army-o-m-volume-1",
     "service": "Army",
     "appropriation": "Operation & Maintenance",
     "document": "Regular Army O&M Volume 1",
     "file": "army-operation-maintenance-regular-army-o-m-volume-1.json",
-    "gridCount": 344
+    "gridCount": 397
   },
   {
     "id": "army-operation-maintenance-regular-army-o-m-volume-2",
@@ -93,7 +101,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "Reserve Army O&M",
     "file": "army-operation-maintenance-reserve-army-o-m.json",
-    "gridCount": 121
+    "gridCount": 103
   },
   {
     "id": "army-operation-maintenance-reserve-army-o-m-overview",
@@ -109,7 +117,7 @@
     "appropriation": "Other Funds",
     "document": "Counter-Islamic State of Iraq and Syria Train and Equip Fund",
     "file": "army-other-funds-counter-islamic-state-of-iraq-and-syria-train-and-equip-fund.json",
-    "gridCount": 22
+    "gridCount": 19
   },
   {
     "id": "army-procurement-aircraft-procurement-army",
@@ -277,7 +285,7 @@
     "appropriation": "Working Capital Fund",
     "document": "Army Working Capital Fund",
     "file": "army-working-capital-fund-army-working-capital-fund.json",
-    "gridCount": 55
+    "gridCount": 54
   },
   {
     "id": "defense-wide-base-realignment-closure-brac-overview",
@@ -293,7 +301,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "CMP OP-5",
     "file": "defense-wide-operation-maintenance-cmp-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-cybercom-headquarters-op-5",
@@ -301,7 +309,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "CYBERCOM Headquarters OP-5",
     "file": "defense-wide-operation-maintenance-cybercom-headquarters-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-cybercom-op-5",
@@ -309,7 +317,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "CYBERCOM OP-5",
     "file": "defense-wide-operation-maintenance-cybercom-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-cyberspace-operations-op-5",
@@ -317,7 +325,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "Cyberspace Operations OP-5",
     "file": "defense-wide-operation-maintenance-cyberspace-operations-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dau-op-5",
@@ -325,7 +333,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DAU OP-5",
     "file": "defense-wide-operation-maintenance-dau-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dcaa-cyber-op-5",
@@ -333,7 +341,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCAA Cyber OP-5",
     "file": "defense-wide-operation-maintenance-dcaa-cyber-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dcaa-op-5",
@@ -341,7 +349,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCAA OP-5",
     "file": "defense-wide-operation-maintenance-dcaa-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dcma-cyber-op-5",
@@ -349,7 +357,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCMA Cyber OP-5",
     "file": "defense-wide-operation-maintenance-dcma-cyber-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dcma-op-5",
@@ -357,7 +365,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCMA OP-5",
     "file": "defense-wide-operation-maintenance-dcma-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dcsa-cyber-op-5",
@@ -365,7 +373,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCSA Cyber OP-5",
     "file": "defense-wide-operation-maintenance-dcsa-cyber-op-5.json",
-    "gridCount": 4
+    "gridCount": 5
   },
   {
     "id": "defense-wide-operation-maintenance-dcsa-op-5",
@@ -373,7 +381,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DCSA OP-5",
     "file": "defense-wide-operation-maintenance-dcsa-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dhra-cyber-op-5",
@@ -381,7 +389,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DHRA Cyber OP-5",
     "file": "defense-wide-operation-maintenance-dhra-cyber-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dhra-op-5",
@@ -389,7 +397,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DHRA OP-5",
     "file": "defense-wide-operation-maintenance-dhra-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-disa-cyber-op-5",
@@ -397,7 +405,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DISA Cyber OP-5",
     "file": "defense-wide-operation-maintenance-disa-cyber-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-disa-op-5",
@@ -405,7 +413,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DISA OP-5",
     "file": "defense-wide-operation-maintenance-disa-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dla-op-5",
@@ -413,7 +421,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DLA OP-5",
     "file": "defense-wide-operation-maintenance-dla-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-dlsa-op-5",
@@ -421,7 +429,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "DLSA OP-5",
     "file": "defense-wide-operation-maintenance-dlsa-op-5.json",
-    "gridCount": 5
+    "gridCount": 6
   },
   {
     "id": "defense-wide-operation-maintenance-om-volume1-part-2",
@@ -429,7 +437,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "OM Volume1 Part 2",
     "file": "defense-wide-operation-maintenance-om-volume1-part-2.json",
-    "gridCount": 43
+    "gridCount": 50
   },
   {
     "id": "defense-wide-operation-maintenance-om-volume1-part1",
@@ -437,7 +445,7 @@
     "appropriation": "Operation & Maintenance",
     "document": "OM Volume1 Part1",
     "file": "defense-wide-operation-maintenance-om-volume1-part1.json",
-    "gridCount": 252
+    "gridCount": 295
   },
   {
     "id": "defense-wide-operation-maintenance-op-32a-summary-part-1",
@@ -477,7 +485,7 @@
     "appropriation": "Drug Interdiction",
     "document": "Drug Interdiction Counter Drug",
     "file": "dod-summary-drug-interdiction-drug-interdiction-counter-drug.json",
-    "gridCount": 36
+    "gridCount": 41
   },
   {
     "id": "dod-summary-military-construction-c-1-c1-milcon-familyhousing-brac",

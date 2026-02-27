@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "process": "node scripts/process-jbook.js",
     "prebuild": "node scripts/process-jbook.js",
     "build": "vite build",
     "preview": "vite preview"

@@ -45,10 +45,11 @@ function orderedColumns(columns, labelCol) {
     seen.add(c.code)
     return true
   })
+  const isNumType = t => t === 'numeric' || t === 'dollar' || t === 'percent'
   return [
     ...add(columns.filter(c => c.code === labelCol)),
-    ...add(columns.filter(c => c.type === 'numeric')),
-    ...add(columns.filter(c => c.type !== 'numeric' && c.code !== labelCol)),
+    ...add(columns.filter(c => isNumType(c.type))),
+    ...add(columns.filter(c => !isNumType(c.type) && c.code !== labelCol)),
   ]
 }
 
@@ -216,7 +217,7 @@ export default function BudgetViewer({ data, breadcrumb, onBreadcrumbUpdate }) {
               borderRadius: 3,
               padding: '2px 8px',
             }}>
-              $ in thousands
+              {grid.dollarUnit === 'millions' ? '$ in millions' : '$ in thousands'}
             </span>
           </div>
 
