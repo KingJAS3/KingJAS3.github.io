@@ -86,6 +86,19 @@ const EXHIBIT_LABELS = {
   // Combined entries
   PBA19_COMBINED: 'Appropriation Highlights',
   OP8P1_COMBINED: 'Civilian Personnel',
+  // Vol 2: PME school grids (4 schools × 3 grid types)
+  PB24CGSCFinSumm: 'Command & General Staff College — Financial Summary',
+  PB24CGSCPerfCrit: 'Command & General Staff College — Performance Criteria',
+  PB24CGSCPersSumm: 'Command & General Staff College — Personnel Summary',
+  PB24AMSCFinSumm: 'Army Management Staff College — Financial Summary',
+  PB24AMSCPerfCrit: 'Army Management Staff College — Performance Criteria',
+  PB24AMSCPersSumm: 'Army Management Staff College — Personnel Summary',
+  PB24USASMAFinSumm: 'Sergeants Major Academy — Financial Summary',
+  PB24USASMAPerfCrit: 'Sergeants Major Academy — Performance Criteria',
+  PB24USASMAPersSumm: 'Sergeants Major Academy — Personnel Summary',
+  PB24USAWCFinSumm: 'Army War College — Financial Summary',
+  PB24USAWCPerfCrit: 'Army War College — Performance Criteria',
+  PB24USAWCPersSumm: 'Army War College — Personnel Summary',
 }
 
 /** Grid codes that get merged into a single PBA19 combined exhibit */
@@ -319,7 +332,6 @@ function SortableTable({ columns, rows, onRowClick, clickableRows, highlightTerm
 
   const sorted = useMemo(() => {
     // Don't sort hierarchical or auto-hierarchy grids — order is meaningful
-    if ((isHierarchical || autoHierarchy) && !sort.col) return rows
     if (isHierarchical || autoHierarchy) return rows
     if (!sort.col) return rows
     return [...rows].sort((a, b) => {
@@ -741,7 +753,7 @@ export default function BudgetViewer({ data, onBreadcrumbChange }) {
     }
     if (view.level === 'exhibit') {
       const grid = parsed.topGrids[view.gridIndex]
-      if (grid) base.push(grid.gridName)
+      if (grid) base.push(exhibitLabel(grid))
     }
     if (view.level === 'manpowerTrend') {
       base.push('Manpower FTE Trend')
@@ -921,11 +933,31 @@ export default function BudgetViewer({ data, onBreadcrumbChange }) {
       for (const row of g.rows) {
         const val = row[colCode]
         if (!val || typeof val !== 'string' || val.length < 3) continue
+        const schoolAbbr = schoolFromGridCode(g.gridCode)
+        const schoolCtx = schoolAbbr && SCHOOL_NAMES[schoolAbbr]
+          ? `${SCHOOL_NAMES[schoolAbbr]} (${schoolAbbr}) > ${exhibitLabel(g)}`
+          : exhibitLabel(g)
         entries.push({
           type: 'GRID ROW',
           label: val,
-          context: exhibitLabel(g),
+          context: schoolCtx,
           nav: { kind: 'exhibit', gridIndex: gi },
+        })
+      }
+    }
+
+    // Index Vol 2 schools by full name (so "academy", "war college" etc. are searchable)
+    if (parsed.schoolGridMap) {
+      for (const [abbr, indices] of Object.entries(parsed.schoolGridMap)) {
+        const fullName = SCHOOL_NAMES[abbr]
+        if (!fullName) continue
+        const gridIndex = indices.fin >= 0 ? indices.fin : indices.perf >= 0 ? indices.perf : indices.pers
+        if (gridIndex < 0) continue
+        entries.push({
+          type: 'SCHOOL',
+          label: `${fullName} (${abbr})`,
+          context: 'Vol 2 School Summary',
+          nav: { kind: 'exhibit', gridIndex },
         })
       }
     }
@@ -1663,6 +1695,7 @@ export default function BudgetViewer({ data, onBreadcrumbChange }) {
                 'NARRATIVE': '#22d3ee',
                 'FORCE STR.': '#34d399',
                 'GRID ROW': '#f59e0b',
+                'SCHOOL': '#a78bfa',
               }
               return (
                 <div

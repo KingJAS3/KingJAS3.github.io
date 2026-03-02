@@ -47,7 +47,7 @@
 
 ---
 
-## 3. Catalog Verification (`public/data/catalog.json`)
+## 3. Catalog Verification (`public/data/index.json`)
 
 **Result: PASS**
 
@@ -71,7 +71,7 @@
 ### 4b. Dev Server (`npm run dev`) — PASS
 
 - Vite dev server starts on port 5173
-- `catalog.json` served correctly (69 documents)
+- `index.json` served correctly (69 documents)
 - Document JSON files served with correct structure including `dollarUnit` metadata
 
 ### 4c. Dropdowns — PASS
